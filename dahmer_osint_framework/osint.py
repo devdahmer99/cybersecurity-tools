@@ -20,20 +20,34 @@ import whois
 import hashlib
 import struct
 import zlib
+import urllib3 # Importante para silenciar avisos SSL
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse, quote_plus
 from datetime import datetime
 from colorama import Fore, Back, Style, init
+from bs4 import BeautifulSoup # Correção do erro anterior
 import argparse
 
-# Inicializa colorama para Windows
+# Tenta importar ssdeep ou ppdeep
+try:
+    import ssdeep
+except ImportError:
+    try:
+        import ppdeep as ssdeep
+    except ImportError:
+        pass # Segue sem ssdeep se não tiver
+
+# Inicializa colorama
 init(autoreset=True)
+
+# Silencia avisos de SSL (InsecureRequestWarning)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ==============================================================================
 # CONFIGURAÇÕES GLOBAIS
 # ==============================================================================
 
-VERSION = "2.0.0" 
+VERSION = "2.1.1" 
 AUTHOR = "devdahmer99"
 TOOL_NAME = "DAHMER OSINT"
 
@@ -125,20 +139,22 @@ def print_status(status, message):
 def print_menu():
     print(f"""
 {Colors.CYAN}+------------------------------------------------------------------------------------------+
-|{Colors.WHITE}{Colors.BOLD}                                    MAIN MENU                                             {Colors.CYAN}|
+|{Colors.WHITE}{Colors.BOLD}                                    MAIN MENU                                             {Colors.CYAN}          |
 +------------------------------------------------------------------------------------------+{Colors.RESET}
-|                                                                                          |
+|                                                                                                                                            
 |   {Colors.GREEN}[1]{Colors.RESET} [?]  Email Harvester         {Colors.DIM}- Coleta emails de dominios{Colors.RESET}                       |
 |   {Colors.GREEN}[2]{Colors.RESET} [?]  Subdomain Enumerator    {Colors.DIM}- Descobre subdominios{Colors.RESET}                            |
 |   {Colors.GREEN}[3]{Colors.RESET} [?]  WHOIS Lookup            {Colors.DIM}- Informacoes de registro de dominio{Colors.RESET}              |
 |   {Colors.GREEN}[4]{Colors.RESET} [?]  Username OSINT          {Colors.DIM}- Busca username em redes sociais{Colors.RESET}                 |
-|   {Colors.GREEN}[5]{Colors.RESET} [?]  Metadata Extractor      {Colors.DIM}- Extrai metadados (Advanced){Colors.RESET}                    |
+|   {Colors.GREEN}[5]{Colors.RESET} [?]  Metadata Extractor      {Colors.DIM}- Extrai metadados (Advanced){Colors.RESET}                     
 |   {Colors.GREEN}[6]{Colors.RESET} [?]  Google Dorker           {Colors.DIM}- Automatiza Google Dorks{Colors.RESET}                         |
 |   {Colors.GREEN}[7]{Colors.RESET} [?]  IP Geolocation          {Colors.DIM}- Geolocalizacao e info de IPs{Colors.RESET}                    |
 |   {Colors.GREEN}[8]{Colors.RESET} [?]  Full Recon              {Colors.DIM}- Reconhecimento completo de alvo{Colors.RESET}                 |
-|                                                                                          |
-|   {Colors.RED}[0]{Colors.RESET} [X]  Exit                     {Colors.DIM}- Sair do framework{Colors.RESET}                               |
-|                                                                                          |
+|   {Colors.GREEN}[9]{Colors.RESET} [?]  Tech & WAF Detector     {Colors.DIM}- Identifica tecnologias e WAF{Colors.RESET}                    |
+|   {Colors.GREEN}[10]{Colors.RESET} [?]  Vuln Scanner (CVEs)     {Colors.DIM}- Busca vulnerabilidades nos componentes achados{Colors.RESET} |
+|                                                                                                                                            
+|   {Colors.RED}[0]{Colors.RESET} [X]  Exit                     {Colors.DIM}- Sair do framework{Colors.RESET}                                |
+|                                                                                                                                            |
 {Colors.CYAN}+------------------------------------------------------------------------------------------+{Colors.RESET}
 """)
 
@@ -698,10 +714,10 @@ class MetadataExtractor:
         
         # SSDEEP (fuzzy hash) se disponivel
         try:
-            import ppdeep as ssdeep
+            # ssdeep já foi importado no topo
             self.metadata['Hashes']['SSDEEP'] = ssdeep.hash_from_file(self.file_path)
         except ImportError:
-            self.metadata['Hashes']['SSDEEP'] = 'ssdeep not installed (pip install ssdeep)'
+            self.metadata['Hashes']['SSDEEP'] = 'ssdeep not installed'
         except Exception:
             pass
         
@@ -1721,6 +1737,13 @@ class FullRecon:
         print(f"\n{Colors.YELLOW}=== GOOGLE DORKS ==={Colors.RESET}\n")
         dorker = GoogleDorker(self.target)
         self.results['dorks'] = dorker.run()
+
+        input(f"\n{Colors.CYAN}Pressione ENTER para continuar...{Colors.RESET}")
+
+        # 5. Tech Detection
+        print(f"\n{Colors.YELLOW}=== TECH DETECTION ==={Colors.RESET}\n")
+        tech_detector = TechDetector(self.target)
+        self.results['tech'] = tech_detector.analyze_tech()
         
         # Resumo final
         print_separator()
@@ -1747,6 +1770,239 @@ class FullRecon:
             json.dump(self.results, f, indent=4, default=str)
         print_status("success", f"Relatorio completo salvo em {filename}")
 
+# ==============================================================================
+# MÓDULO 9: TECH & WAF DETECTOR
+# ==============================================================================
+class TechDetector:
+    def __init__(self, domain):
+        self.domain = domain
+        if not domain.startswith('http'):
+            self.url = f"http://{domain}"
+            self.url_ssl = f"https://{domain}"
+        else:
+            self.url = domain
+            self.url_ssl = domain
+        self.results = {
+            'Server': 'Unknown', 'PoweredBy': [], 'Cookies': [],
+            'WAF': 'Not Detected', 'CMS': 'Unknown', 'CMS_Version': 'Unknown',
+            'Theme': 'Unknown', 'Plugins_Found': [], 'Security_Headers': {},
+            'Interesting_Files': []
+        }
+        self.session = requests.Session()
+        self.session.headers.update(HEADERS)
+
+    def check_waf(self, headers, content):
+        waf_signatures = {
+            'Cloudflare': ['cf-ray', '__cfduid', 'server: cloudflare'],
+            'AWS WAF': ['x-amzn-requestid', 'awselb'],
+            'Akamai': ['x-akamai', 'akamai-ghost'],
+            'Sucuri': ['x-sucuri', 'sucuri'],
+            'Incapsula': ['x-cdn', 'incap_ses'],
+            'LiteSpeed': ['litespeed']
+        }
+        headers_str = str(headers).lower()
+        content_str = str(content).lower()
+        for waf, sigs in waf_signatures.items():
+            for sig in sigs:
+                if sig in headers_str or sig in content_str: return waf
+        return "None / Hidden"
+
+    def check_security_headers(self, headers):
+        sec_headers = ['Strict-Transport-Security', 'Content-Security-Policy', 'X-Frame-Options', 'X-XSS-Protection', 'X-Content-Type-Options', 'Referrer-Policy']
+        for header in sec_headers:
+            self.results['Security_Headers'][header] = "Present" if header in headers else "MISSING"
+
+    def analyze_wordpress(self, html):
+        ver = re.search(r'content="WordPress\s+([0-9.]+)', html, re.I)
+        if ver: self.results['CMS_Version'] = ver.group(1)
+        theme = re.search(r'wp-content/themes/([a-zA-Z0-9\-_]+)/', html)
+        if theme: self.results['Theme'] = theme.group(1)
+        plugins = re.findall(r'wp-content/plugins/([a-zA-Z0-9\-_]+)/', html)
+        if plugins: self.results['Plugins_Found'] = list(set(plugins))
+
+    def check_files(self):
+        for file in ['robots.txt', 'sitemap.xml', 'wp-login.php']:
+            try:
+                if self.session.head(f"{self.url}/{file}", timeout=5).status_code == 200:
+                    self.results['Interesting_Files'].append(f"{file} (Found)")
+            except: pass
+
+    def analyze_tech(self):
+        print_status("info", f"Analisando stack tecnológico para {self.domain}...")
+        try:
+            try: resp = self.session.get(self.url_ssl, timeout=15, verify=False)
+            except: resp = self.session.get(self.url, timeout=15)
+            
+            self.results['Server'] = resp.headers.get('Server', 'Hidden')
+            self.results['WAF'] = self.check_waf(resp.headers, resp.text)
+            if 'X-Powered-By' in resp.headers: self.results['PoweredBy'].append(resp.headers['X-Powered-By'])
+            
+            if '/wp-content/' in resp.text: 
+                self.results['CMS'] = 'WordPress'
+                self.analyze_wordpress(resp.text)
+            
+            self.check_security_headers(resp.headers)
+            self.check_files()
+        except Exception as e:
+            print_status("error", f"Erro na análise: {str(e)}")
+        
+        self.print_report()
+        return self.results
+
+    def print_report(self):
+        print_separator()
+        print(f"\n{Colors.GREEN}   RELATÓRIO TECH: {self.results['CMS']} | WAF: {self.results['WAF']}   {Colors.RESET}\n")
+        if self.results['CMS'] == 'WordPress':
+            print(f"   Plugins: {', '.join(self.results['Plugins_Found'][:5])}")
+        self.save_results()
+
+    def save_results(self):
+        filename = f"tech_{self.domain}_{datetime.now().strftime('%H%M%S')}.json"
+        with open(filename, 'w') as f: json.dump(self.results, f, indent=4)
+        print_status("success", f"Salvo em {filename}")
+
+    def run(self):
+        print_module_header("TECH DETECTOR")
+        return self.analyze_tech()
+
+# ==============================================================================
+# MÓDULO 10: VULNERABILITY SCANNER (CVE LOOKUP - BLINDADO)
+# ==============================================================================
+
+class VulnScanner:
+    def __init__(self, tech_results):
+        self.tech_data = tech_results
+        self.vulns = []
+        self.session = requests.Session()
+        self.session.headers.update(HEADERS)
+
+    def search_cve(self, product, version=None):
+        """Busca CVEs para um produto específico"""
+        print_status("info", f"Buscando CVEs para: {product}...")
+        
+        try:
+            # Usa a API pública do cve.circl.lu (Open Source)
+            url = f"https://cve.circl.lu/api/search/{product}"
+            response = self.session.get(url, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                results = []
+
+                # Lógica de tratamento da resposta da API
+                if isinstance(data, dict) and 'data' in data: 
+                    results = data['data']
+                elif isinstance(data, list):
+                    results = data
+                
+                found_count = 0
+                
+                for item in results[:5]: # Pega os 5 mais recentes
+                    # --- CORREÇÃO CRÍTICA: Verifica se é um dicionário ---
+                    if not isinstance(item, dict):
+                        continue
+                    # -----------------------------------------------------
+
+                    cve_id = item.get('id', 'N/A')
+                    summary = item.get('summary', 'No summary')
+                    cvss = item.get('cvss', 'N/A')
+                    
+                    # Se tivermos a versão, tentamos ver se ela é mencionada (match simples)
+                    version_note = ""
+                    if version and version in str(summary):
+                        version_note = f"{Colors.RED}[VERSION MATCH]{Colors.RESET} "
+                    
+                    self.vulns.append({
+                        'Product': product,
+                        'CVE': cve_id,
+                        'CVSS': cvss,
+                        'Summary': summary,
+                        'Match': version_note
+                    })
+                    found_count += 1
+                
+                if found_count > 0:
+                    print_status("found", f"{found_count} CVEs encontrados para {product}")
+                    
+        except Exception as e:
+            print_status("error", f"Erro ao buscar CVE: {str(e)}")
+
+    def run(self):
+        print_module_header("VULNERABILITY SCANNER")
+        
+        # Validação inicial dos dados da memória
+        if not isinstance(self.tech_data, dict):
+            print_status("error", "Dados do TechDetector inválidos ou vazios.")
+            print(f"{Colors.DIM}Debug: Recebido -> {type(self.tech_data)}{Colors.RESET}")
+            return
+
+        # 1. Verificar CMS Core
+        cms = self.tech_data.get('CMS')
+        version = self.tech_data.get('CMS_Version')
+        
+        if cms and cms != 'Unknown':
+            if version and version != 'Unknown':
+                print_status("info", f"Verificando Core: {cms} {version}")
+                self.search_cve(cms, version)
+            else:
+                self.search_cve(cms)
+
+        # 2. Verificar Plugins
+        plugins = self.tech_data.get('Plugins_Found', [])
+        if plugins:
+            print_status("info", f"Verificando {len(plugins)} plugins encontrados...")
+            for plugin in plugins:
+                # Limpa o nome do plugin para melhor busca e força string
+                clean_name = str(plugin).replace('-', ' ').replace('_', ' ')
+                self.search_cve(clean_name)
+
+        # 3. Verificar Tema
+        theme = self.tech_data.get('Theme')
+        if theme and theme != 'Unknown':
+            print_status("info", f"Verificando Tema: {theme}")
+            self.search_cve(str(theme))
+
+        self.print_report()
+
+    def print_report(self):
+        print_separator()
+        print(f"\n{Colors.GREEN}╔{'═' * 60}╗")
+        print(f"║{Colors.WHITE}{Colors.BOLD} {'RELATÓRIO DE VULNERABILIDADES (CVEs)'.center(58)} {Colors.GREEN}║")
+        print(f"╚{'═' * 60}╝{Colors.RESET}\n")
+
+        if not self.vulns:
+            print(f"    {Colors.GREEN}Nenhuma CVE pública encontrada diretamente para os componentes.{Colors.RESET}")
+            print(f"    {Colors.DIM}(Isso não garante que esteja seguro, apenas que não há CVEs óbvias){Colors.RESET}")
+        else:
+            print(f"    {Colors.YELLOW}ATENÇÃO: Verifique se a versão instalada corresponde à CVE.{Colors.RESET}\n")
+            
+            current_product = ""
+            for vuln in self.vulns:
+                if vuln['Product'] != current_product:
+                    print(f"\n {Colors.CYAN}● {vuln['Product'].upper()}:{Colors.RESET}")
+                    current_product = vuln['Product']
+                
+                # Tratamento para CVSS ser float ou string
+                try:
+                    is_critical = float(vuln['CVSS']) > 7.0
+                except:
+                    is_critical = False
+
+                risk_color = Colors.RED if is_critical else Colors.YELLOW
+                
+                print(f"    ┌─ {risk_color}{vuln['CVE']}{Colors.RESET} (CVSS: {vuln['CVSS']}) {vuln.get('Match', '')}")
+                # Trunca o resumo para não poluir a tela
+                summary_text = str(vuln['Summary'])
+                summary = summary_text[:150] + "..." if len(summary_text) > 150 else summary_text
+                print(f"    └─ {Colors.DIM}{summary}{Colors.RESET}")
+
+        self.save_results()
+
+    def save_results(self):
+        filename = f"vulns_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(self.vulns, f, indent=4)
+        print_status("success", f"Relatório de CVEs salvo em {filename}")
 
 # ==============================================================================
 # FUNÇÕES AUXILIARES
@@ -1770,6 +2026,7 @@ def pause():
 # ==============================================================================
 
 def main():
+    shared_tech_data = None
     """Funcao principal do framework"""
     
     while True:
@@ -1834,6 +2091,20 @@ def main():
                 target = get_user_input("Digite o dominio alvo para recon completo")
                 recon = FullRecon(target)
                 recon.run()
+                pause()
+
+            elif choice == '9':
+                # Tech Detector
+                t_domain = get_user_input("Dominio")
+                shared_tech_data = TechDetector(t_domain).run()
+                pause()
+            elif choice == '10':
+                # Vuln Scanner (CVEs)
+                if shared_tech_data and isinstance(shared_tech_data, dict):
+                    print_status("info", "Usando dados armazenados na memória...")
+                    VulnScanner(shared_tech_data).run()
+                else:
+                    print_status("warning", "Memória vazia. Execute a opção 9 primeiro.")
                 pause()
                 
             elif choice == '0':
