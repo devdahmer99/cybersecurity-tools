@@ -23,7 +23,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.0-blue?style=for-the-badge)](https://github.com/devdahmer99/cybersecurity-tools)
+[![Version](https://img.shields.io/badge/Version-2.1.1-blue?style=for-the-badge)](https://github.com/devdahmer99/cybersecurity-tools)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20|%20Windows%20|%20macOS-lightgrey?style=for-the-badge)](https://github.com/devdahmer99/cybersecurity-tools)
 [![Maintained](https://img.shields.io/badge/Maintained-Yes-success?style=for-the-badge)](https://github.com/devdahmer99)
 
@@ -75,11 +75,11 @@ O framework consolida mÃºltiplas ferramentas de reconhecimento em uma Ãºnica int
 
 | CaracterÃ­stica | BenefÃ­cio |
 |----------------|-----------|
-| **All-in-One** | 8 mÃ³dulos integrados em uma Ãºnica ferramenta |
+| **All-in-One** | 10 módulos integrados em uma única ferramenta |
 | **Interface Intuitiva** | Menu interativo com visual profissional |
-| **Linha de Comando** | Suporte completo para automaÃ§Ã£o e scripts |
-| **ExportaÃ§Ã£o** | Resultados salvos em JSON e TXT automaticamente |
-| **ExtensÃ­vel** | Arquitetura modular fÃ¡cil de expandir |
+| **Linha de Comando** | Suporte completo para automação e scripts |
+| **Exportação** | Resultados salvos em JSON e TXT automaticamente |
+| **Extensível** | Arquitetura modular fácil de expandir |
 | **Cross-Platform** | Funciona em Linux, Windows e macOS |
 
 ---
@@ -134,12 +134,12 @@ Busca presenÃ§a digital em **100+ plataformas**:
 <tr>
 <td width="50%">
 
-### ðŸ“„ Metadata Extractor
-Extrai metadados de arquivos:
-- PDF (autor, criador, datas)
-- Imagens (EXIF, GPS, cÃ¢mera)
-- DOCX (propriedades, revisÃµes)
-- Hashes MD5/SHA256
+### ?? Advanced Metadata Extractor
+Análise forense completa de arquivos:
+- **Imagens**: EXIF, GPS, XMP, IPTC, thumbnails
+- **Todos os tipos**: Múltiplos hashes, strings ocultas
+- **Detecção**: Software usado, dados sensíveis
+- **Análise binária**: Emails, URLs, caminhos
 
 </td>
 <td width="50%">
@@ -166,12 +166,34 @@ GeolocalizaÃ§Ã£o e informaÃ§Ãµes de IPs:
 </td>
 <td width="50%">
 
-### ðŸ”— Full Recon
+### ?? Full Recon
 Reconhecimento completo automatizado:
-- Executa todos os mÃ³dulos
-- RelatÃ³rio consolidado
+- Executa todos os módulos
+- Relatório consolidado
 - Ideal para assessments
-- ExportaÃ§Ã£o unificada
+- Exportação unificada
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### ?? Tech & WAF Detector
+Identifica tecnologias e proteções:
+- Stack tecnológico completo
+- Detecção de CMS e versões
+- WAF e security headers
+- Plugins e temas ativos
+
+</td>
+<td width="50%">
+
+### ?? Vulnerability Scanner
+Busca CVEs em componentes:
+- Base de dados públicas
+- Score CVSS de risco
+- Match com versões encontradas
+- Relatórios detalhados
 
 </td>
 </tr>
@@ -289,8 +311,8 @@ python osint_framework.py
 
 ```bash
 # Baixe os arquivos
-wget https://raw.githubusercontent.com/devdahmer99/cybersecurity-tools/main/osint_framework/osint_framework.py
-wget https://raw.githubusercontent.com/devdahmer99/cybersecurity-tools/main/osint_framework/requirements.txt
+wget https://raw.githubusercontent.com/devdahmer99/cybersecurity-tools/main/dahmer_osint_framework/osint.py
+wget https://raw.githubusercontent.com/devdahmer99/cybersecurity-tools/main/dahmer_osint_framework/requirements.txt
 
 # Instale as dependÃªncias
 pip install -r requirements.txt
@@ -337,25 +359,31 @@ Use flags para execuÃ§Ã£o direta de mÃ³dulos especÃ­ficos:
 
 ```bash
 # Email Harvester
-python osint_framework.py -e exemplo.com.br
+python osint.py -e exemplo.com.br
 
 # Subdomain Enumerator
-python osint_framework.py -s exemplo.com.br
+python osint.py -s exemplo.com.br
 
 # WHOIS Lookup
-python osint_framework.py -w exemplo.com.br
+python osint.py -w exemplo.com.br
 
 # Username OSINT
-python osint_framework.py -u nomeusuario
+python osint.py -u nomeusuario
 
-# Metadata Extractor
-python osint_framework.py -m documento.pdf
+# Advanced Metadata Extractor
+python osint.py -m documento.pdf
 
 # Google Dorker
-python osint_framework.py -g exemplo.com.br
+python osint.py -g exemplo.com.br
 
 # IP Geolocation
-python osint_framework.py -i 8.8.8.8
+python osint.py -i 8.8.8.8
+
+# Full Recon
+python osint.py -f exemplo.com.br
+
+# Tech & Vuln Analysis (Interactive Mode)
+python osint.py    # Use menu para opções 9 e 10
 
 # Full Recon
 python osint_framework.py -f exemplo.com.br
@@ -628,6 +656,91 @@ full_recon_exemplo.com_20241124_102030.json
 
 ---
 
+### ?? 9. Tech & WAF Detector
+
+Identifica tecnologias, CMS, frameworks e sistemas de proteção de um alvo.
+
+**Tecnologias detectadas:**
+| Categoria | Detecções |
+|-----------|-----------|
+| **CMS** | WordPress, Drupal, Joomla, etc. |
+| **Servidor Web** | Apache, Nginx, IIS, LiteSpeed |
+| **WAF** | Cloudflare, AWS WAF, Akamai, Sucuri |
+| **Frameworks** | Laravel, React, Angular, Vue |
+| **Plugins** | WordPress plugins ativos |
+| **Security Headers** | HSTS, CSP, X-Frame-Options |
+
+**Informações coletadas:**
+- Versões específicas do CMS
+- Plugins e temas identificados  
+- Headers de segurança implementados
+- Arquivos interessantes encontrados
+- Configurações expostas
+
+**Output:**
+```
+tech_exemplo.com_102030.json
+```
+
+**Exemplo de relatório:**
+```
+??????????????????????????????????????????????????????????????
+?                    TECH STACK REPORT                        ?
+??????????????????????????????????????????????????????????????
+
+CMS: WordPress 6.3.2
+WAF: Cloudflare  
+Plugins: contact-form-7, yoast-seo, elementor
+Theme: astra
+Security Headers: 3/6 Missing
+```
+
+---
+
+### ?? 10. Vulnerability Scanner (CVE)
+
+Busca vulnerabilidades conhecidas (CVEs) nos componentes identificados pelo Tech Detector.
+
+**Fontes de dados:**
+- **cve.circl.lu** - Base de dados pública de CVEs
+- **NVD/NIST** - National Vulnerability Database  
+- **Correlação automática** com versões encontradas
+
+**Funcionalidades:**
+- Busca por CMS core (WordPress, Drupal, etc.)
+- Análise de plugins identificados
+- Verificação de temas
+- Score CVSS de criticidade
+- Match automático de versões
+
+**Exemplo de saída:**
+```
+??????????????????????????????????????????????????????????????
+?               RELATÓRIO DE VULNERABILIDADES                  ?
+??????????????????????????????????????????????????????????????
+
+ ? WORDPRESS:
+    ?? CVE-2023-39999 (CVSS: 9.8) [VERSION MATCH]
+    ?? WordPress Core <= 6.3.2 - Remote Code Execution...
+    
+ ? PLUGIN CONTACT-FORM-7:
+    ?? CVE-2023-12345 (CVSS: 7.5)  
+    ?? Contact Form 7 - Cross-Site Scripting (XSS)...
+```
+
+**Output:**
+```
+vulns_20241124_102030.json
+```
+
+**?? Importante:**
+- O scanner **NÃO** executa exploits
+- Verifica apenas CVEs públicas conhecidas
+- Requer execução do Tech Detector primeiro
+- Resultados devem ser validados manualmente
+
+---
+
 ## ðŸŽ¯ Exemplos PrÃ¡ticos
 
 ### Exemplo 1: Reconhecimento de Empresa
@@ -656,17 +769,67 @@ python osint_framework.py -u johndoe123
 python osint_framework.py -i 192.168.1.1
 ```
 
-### Exemplo 3: AnÃ¡lise de Documento
+### Exemplo 3: Análise de Segurança Completa
 
 ```bash
-# Extrair metadados de um PDF suspeito
-python osint_framework.py -m documento_suspeito.pdf
+# Passo 1: Reconhecimento básico
+python osint.py -f empresa.com
 
-# Extrair EXIF de imagem
-python osint_framework.py -m foto.jpg
+# Passo 2: Análise tecnológica detalhada
+python osint.py   # Menu interativo -> opção 9
+
+# Passo 3: Buscar vulnerabilidades  
+python osint.py   # Menu interativo -> opção 10
+
+# Resultado: Stack completo + CVEs conhecidos
 ```
 
-### Exemplo 4: Uso em Script Bash
+### Exemplo 4: Análise Forense de Documento (AVANÇADA)
+
+```bash
+# Extrair TODOS os metadados de uma imagem
+python osint.py -m foto_suspeita.jpg
+# ? EXIF completo, GPS, XMP, IPTC, thumbnails, strings ocultas
+
+# Analisar PDF corporativo  
+python osint.py -m relatorio_financeiro.pdf
+# ? Autor, software usado, histórico de edição, dados sensíveis
+
+# Buscar dados ocultos em qualquer arquivo
+python osint.py -m arquivo_suspeito.bin
+# ? Emails, URLs, caminhos, hashes múltiplos, análise binária
+```
+
+### Exemplo 5: Workflow de Pentest Completo
+
+```bash
+#!/bin/bash
+# pentest_automation.sh
+
+TARGET="empresa-alvo.com"
+
+echo "[*] Iniciando avaliação de segurança para: $TARGET"
+
+# Fase 1: Reconhecimento
+echo "[1/4] Reconhecimento inicial..."
+python osint.py -f "$TARGET"
+
+# Fase 2: Análise tecnológica  
+echo "[2/4] Identificando stack tecnológico..."
+python osint.py   # Menu -> opção 9
+
+# Fase 3: Busca de vulnerabilidades
+echo "[3/4] Buscando CVEs nos componentes..."  
+python osint.py   # Menu -> opção 10
+
+# Fase 4: Compilar relatório
+echo "[4/4] Compilando resultados..."
+cat full_recon_${TARGET}_*.json > relatorio_completo.json
+
+echo "[?] Assessment concluído! Verifique os arquivos gerados."
+```
+
+### Exemplo 6: Uso em Script Bash
 
 ```bash
 #!/bin/bash
@@ -676,7 +839,7 @@ ALVOS=("empresa1.com" "empresa2.com" "empresa3.com")
 
 for alvo in "${ALVOS[@]}"; do
     echo "[*] Iniciando recon para: $alvo"
-    python osint_framework.py -f "$alvo"
+    python osint.py -f "$alvo"
     echo "[+] ConcluÃ­do: $alvo"
     echo "---"
 done
@@ -686,7 +849,7 @@ done
 
 ```bash
 # Exportar subdomÃ­nios para usar com outras ferramentas
-python osint_framework.py -s exemplo.com
+python osint.py -s exemplo.com
 cat subdomains_exemplo.com_*.txt | httpx -silent -o hosts_ativos.txt
 cat hosts_ativos.txt | nuclei -t cves/
 ```
