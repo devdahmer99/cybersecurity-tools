@@ -139,22 +139,22 @@ def print_status(status, message):
 def print_menu():
     print(f"""
 {Colors.CYAN}+------------------------------------------------------------------------------------------+
-|{Colors.WHITE}{Colors.BOLD}                                    MAIN MENU                                             {Colors.CYAN}          |
+|{Colors.WHITE}{Colors.BOLD}                                        MAIN MENU                                         {Colors.CYAN}|
 +------------------------------------------------------------------------------------------+{Colors.RESET}
-|                                                                                                                                            
-|   {Colors.GREEN}[1]{Colors.RESET} [?]  Email Harvester         {Colors.DIM}- Coleta emails de dominios{Colors.RESET}                       |
-|   {Colors.GREEN}[2]{Colors.RESET} [?]  Subdomain Enumerator    {Colors.DIM}- Descobre subdominios{Colors.RESET}                            |
-|   {Colors.GREEN}[3]{Colors.RESET} [?]  WHOIS Lookup            {Colors.DIM}- Informacoes de registro de dominio{Colors.RESET}              |
-|   {Colors.GREEN}[4]{Colors.RESET} [?]  Username OSINT          {Colors.DIM}- Busca username em redes sociais{Colors.RESET}                 |
-|   {Colors.GREEN}[5]{Colors.RESET} [?]  Metadata Extractor      {Colors.DIM}- Extrai metadados (Advanced){Colors.RESET}                     
-|   {Colors.GREEN}[6]{Colors.RESET} [?]  Google Dorker           {Colors.DIM}- Automatiza Google Dorks{Colors.RESET}                         |
-|   {Colors.GREEN}[7]{Colors.RESET} [?]  IP Geolocation          {Colors.DIM}- Geolocalizacao e info de IPs{Colors.RESET}                    |
-|   {Colors.GREEN}[8]{Colors.RESET} [?]  Full Recon              {Colors.DIM}- Reconhecimento completo de alvo{Colors.RESET}                 |
-|   {Colors.GREEN}[9]{Colors.RESET} [?]  Tech & WAF Detector     {Colors.DIM}- Identifica tecnologias e WAF{Colors.RESET}                    |
-|   {Colors.GREEN}[10]{Colors.RESET} [?]  Vuln Scanner (CVEs)     {Colors.DIM}- Busca vulnerabilidades nos componentes achados{Colors.RESET} |
-|                                                                                                                                            
-|   {Colors.RED}[0]{Colors.RESET} [X]  Exit                     {Colors.DIM}- Sair do framework{Colors.RESET}                                |
-|                                                                                                                                            |
+|                                                                                          |
+|   {Colors.GREEN}[1]{Colors.RESET}  [?]  Email Harvester         {Colors.DIM}- Coleta emails de dominios{Colors.RESET}                        |
+|   {Colors.GREEN}[2]{Colors.RESET}  [?]  Subdomain Enumerator    {Colors.DIM}- Descobre subdominios{Colors.RESET}                             |
+|   {Colors.GREEN}[3]{Colors.RESET}  [?]  WHOIS Lookup            {Colors.DIM}- Informacoes de registro de dominio{Colors.RESET}               |
+|   {Colors.GREEN}[4]{Colors.RESET}  [?]  Username OSINT          {Colors.DIM}- Busca username em redes sociais{Colors.RESET}                  |
+|   {Colors.GREEN}[5]{Colors.RESET}  [?]  Metadata Extractor      {Colors.DIM}- Extrai metadados (Advanced){Colors.RESET}                      |
+|   {Colors.GREEN}[6]{Colors.RESET}  [?]  Google Dorker           {Colors.DIM}- Automatiza Google Dorks{Colors.RESET}                          |
+|   {Colors.GREEN}[7]{Colors.RESET}  [?]  IP Geolocation          {Colors.DIM}- Geolocalizacao e info de IPs{Colors.RESET}                     |
+|   {Colors.GREEN}[8]{Colors.RESET}  [?]  Full Recon              {Colors.DIM}- Reconhecimento completo de alvo{Colors.RESET}                  |
+|   {Colors.GREEN}[9]{Colors.RESET}  [?]  Tech & WAF Detector     {Colors.DIM}- Identifica tecnologias e WAF{Colors.RESET}                     |
+|   {Colors.GREEN}[10]{Colors.RESET} [!]  Vuln Scanner (CVE)      {Colors.DIM}- Busca vulnerabilidades nos componentes achados{Colors.RESET}   |
+|                                                                                          |
+|   {Colors.RED}[0]{Colors.RESET}  [X]  Exit                    {Colors.DIM}- Sair do framework{Colors.RESET}                                |
+|                                                                                          |
 {Colors.CYAN}+------------------------------------------------------------------------------------------+{Colors.RESET}
 """)
 
