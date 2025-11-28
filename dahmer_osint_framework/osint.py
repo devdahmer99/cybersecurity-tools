@@ -21,6 +21,10 @@ import hashlib
 import struct
 import zlib
 import urllib3 # Importante para silenciar avisos SSL
+import platform
+import subprocess
+import shutil
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse, quote_plus
 from datetime import datetime
@@ -146,12 +150,13 @@ def print_menu():
 |   {Colors.GREEN}[2]{Colors.RESET}  [?]  Subdomain Enumerator    {Colors.DIM}- Descobre subdominios{Colors.RESET}                             |
 |   {Colors.GREEN}[3]{Colors.RESET}  [?]  WHOIS Lookup            {Colors.DIM}- Informacoes de registro de dominio{Colors.RESET}               |
 |   {Colors.GREEN}[4]{Colors.RESET}  [?]  Username OSINT          {Colors.DIM}- Busca username em redes sociais{Colors.RESET}                  |
-|   {Colors.GREEN}[5]{Colors.RESET}  [?]  Metadata Extractor      {Colors.DIM}- Extrai metadados (Advanced){Colors.RESET}                      |
+|   {Colors.GREEN}[5]{Colors.RESET}  [?]  Metadata Extractor      {Colors.DIM}- Extrai metadados + GPS (ExifTool + Advanced){Colors.RESET}     |
 |   {Colors.GREEN}[6]{Colors.RESET}  [?]  Google Dorker           {Colors.DIM}- Automatiza Google Dorks{Colors.RESET}                          |
 |   {Colors.GREEN}[7]{Colors.RESET}  [?]  IP Geolocation          {Colors.DIM}- Geolocalizacao e info de IPs{Colors.RESET}                     |
 |   {Colors.GREEN}[8]{Colors.RESET}  [?]  Full Recon              {Colors.DIM}- Reconhecimento completo de alvo{Colors.RESET}                  |
 |   {Colors.GREEN}[9]{Colors.RESET}  [?]  Tech & WAF Detector     {Colors.DIM}- Identifica tecnologias e WAF{Colors.RESET}                     |
 |   {Colors.GREEN}[10]{Colors.RESET} [!]  Vuln Scanner (CVE)      {Colors.DIM}- Busca vulnerabilidades nos componentes achados{Colors.RESET}   |
+|   {Colors.GREEN}[11]{Colors.RESET} [?]  ExifTool Status         {Colors.DIM}- Verifica instalacao e suporte do ExifTool{Colors.RESET}        |
 |                                                                                          |
 |   {Colors.RED}[0]{Colors.RESET}  [X]  Exit                    {Colors.DIM}- Sair do framework{Colors.RESET}                                |
 |                                                                                          |
@@ -624,21 +629,676 @@ class UsernameOSINT:
         print_status("success", f"Resultados salvos em {filename}")
 
 # ==============================================================================
-# MÓDULO 5: METADATA EXTRACTOR (ADVANCED)
+# EXIFTOOL INTERFACE - Similar ao libimage-exiftool-perl
 # ==============================================================================
 
+class ExifToolInterface:
+    """Interface similar ao libimage-exiftool-perl para Python"""
+    
+    def __init__(self):
+        self.exiftool_path = None
+        self.is_available = self._check_exiftool()
+        
+    def _check_exiftool(self):
+        """Verifica se ExifTool está disponível no sistema"""
+        try:
+            # Tentar encontrar exiftool no PATH
+            if platform.system() == 'Windows':
+                result = subprocess.run(['where', 'exiftool'], 
+                                      capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    self.exiftool_path = result.stdout.strip().split('\n')[0]
+                    return True
+                    
+                # Verificar locais comuns no Windows
+                common_paths = [
+                    r'C:\exiftool\exiftool.exe',
+                    r'C:\Program Files\exiftool\exiftool.exe',
+                    r'C:\tools\exiftool\exiftool.exe'
+                ]
+                
+                for path in common_paths:
+                    if os.path.exists(path):
+                        self.exiftool_path = path
+                        return True
+            else:
+                # Linux/Unix
+                result = subprocess.run(['which', 'exiftool'], 
+                                      capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    self.exiftool_path = result.stdout.strip()
+                    return True
+                    
+        except Exception:
+            pass
+            
+        return False
+    
+    def extract_metadata(self, file_path, json_output=True):
+        """Extrai metadados usando ExifTool"""
+        if not self.is_available:
+            raise Exception("ExifTool não encontrado. Instale ExifTool primeiro.")
+            
+        try:
+            cmd = [self.exiftool_path]
+            
+            if json_output:
+                cmd.extend(['-j', '-n'])  # JSON output, numeric values
+            
+            cmd.extend([
+                '-a',  # Allow duplicate tag names
+                '-G',  # Group names
+                '-s',  # Short tag names
+                file_path
+            ])
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            
+            if result.returncode == 0:
+                if json_output:
+                    return json.loads(result.stdout)
+                else:
+                    return result.stdout
+            else:
+                raise Exception(f"ExifTool error: {result.stderr}")
+                
+        except Exception as e:
+            raise Exception(f"Erro ao executar ExifTool: {str(e)}")
+    
+    def get_supported_formats(self):
+        """Retorna formatos suportados pelo ExifTool"""
+        if not self.is_available:
+            return []
+            
+        try:
+            cmd = [self.exiftool_path, '-listf']
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0:
+                formats = []
+                for line in result.stdout.split('\n'):
+                    if line.strip() and not line.startswith('#'):
+                        formats.append(line.strip())
+                return formats
+        except Exception:
+            pass
+            
+        return []
+    
+    @staticmethod
+    def install_instructions():
+        """Retorna instruções de instalação do ExifTool"""
+        system = platform.system()
+        
+        if system == 'Windows':
+            return {
+                'method1': {
+                    'title': 'Download Manual',
+                    'steps': [
+                        '1. Baixe o ExifTool de: https://exiftool.org/',
+                        '2. Extraia para C:\\exiftool\\',
+                        '3. Renomeie exiftool(-k).exe para exiftool.exe',
+                        '4. Adicione C:\\exiftool\\ ao PATH do Windows'
+                    ]
+                },
+                'method2': {
+                    'title': 'Chocolatey (Recomendado)',
+                    'steps': [
+                        '1. Instale Chocolatey: https://chocolatey.org/install',
+                        '2. Execute: choco install exiftool'
+                    ]
+                }
+            }
+        else:
+            return {
+                'ubuntu': {
+                    'title': 'Ubuntu/Debian',
+                    'steps': ['sudo apt-get update', 'sudo apt-get install libimage-exiftool-perl']
+                },
+                'centos': {
+                    'title': 'CentOS/RHEL/Fedora', 
+                    'steps': ['sudo yum install perl-Image-ExifTool', '# ou dnf install perl-Image-ExifTool']
+                },
+                'arch': {
+                    'title': 'Arch Linux',
+                    'steps': ['sudo pacman -S perl-image-exiftool']
+                },
+                'manual': {
+                    'title': 'Instalação Manual',
+                    'steps': [
+                        'wget https://exiftool.org/Image-ExifTool-12.70.tar.gz',
+                        'tar -xzf Image-ExifTool-12.70.tar.gz',
+                        'cd Image-ExifTool-12.70',
+                        'perl Makefile.PL',
+                        'make test',
+                        'sudo make install'
+                    ]
+                }
+            }
+
+# ==============================================================================
+# GEOLOCATION EXTRACTOR - Análise Avançada de GPS em Metadados
+# ==============================================================================
+
+class GeolocationExtractor:
+    """Extrator especializado em geolocalização de metadados"""
+    
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update(HEADERS)
+        self.locations_found = []
+        self.reverse_geocoding_data = {}
+        
+    def extract_gps_from_exif(self, metadata):
+        """Extrai coordenadas GPS de metadados EXIF"""
+        locations = []
+        
+        # Buscar em diferentes seções dos metadados
+        gps_sources = [
+            metadata.get('GPS_Location', {}),
+            metadata.get('ExifTool_GPS', {}),
+            metadata.get('EXIF', {}),
+        ]
+        
+        for source in gps_sources:
+            if not source:
+                continue
+                
+            # Procurar coordenadas já processadas
+            lat = source.get('Latitude_Decimal') or source.get('GPSLatitude') or source.get('GPS:GPSLatitude')
+            lon = source.get('Longitude_Decimal') or source.get('GPSLongitude') or source.get('GPS:GPSLongitude')
+            
+            if lat and lon:
+                try:
+                    lat_float = float(lat)
+                    lon_float = float(lon)
+                    
+                    if -90 <= lat_float <= 90 and -180 <= lon_float <= 180:
+                        location_data = {
+                            'latitude': lat_float,
+                            'longitude': lon_float,
+                            'source': 'EXIF_GPS',
+                            'accuracy': source.get('GPSAccuracy', 'Unknown'),
+                            'altitude': source.get('Altitude_Meters') or source.get('GPSAltitude'),
+                            'timestamp': source.get('GPS_Date') or source.get('GPS_Time'),
+                            'speed': source.get('GPS_Speed'),
+                            'direction': source.get('GPS_Direction_Degrees'),
+                        }
+                        locations.append(location_data)
+                        
+                except (ValueError, TypeError):
+                    continue
+        
+        return locations
+    
+    def extract_gps_from_xmp(self, metadata):
+        """Extrai coordenadas de metadados XMP"""
+        locations = []
+        
+        xmp_data = metadata.get('XMP_Metadata', {}) or metadata.get('ExifTool_XMP', {})
+        
+        if xmp_data:
+            # XMP pode conter GPS em diferentes formatos
+            gps_keys = [k for k in xmp_data.keys() if 'gps' in k.lower() or 'location' in k.lower()]
+            
+            for key in gps_keys:
+                value = xmp_data[key]
+                # Tentar extrair coordenadas do valor
+                coords = self._parse_coordinate_string(str(value))
+                if coords:
+                    location_data = {
+                        'latitude': coords[0],
+                        'longitude': coords[1],
+                        'source': f'XMP_{key}',
+                        'raw_value': value
+                    }
+                    locations.append(location_data)
+        
+        return locations
+    
+    def extract_gps_from_strings(self, metadata):
+        """Extrai coordenadas de strings encontradas no arquivo"""
+        locations = []
+        
+        strings_data = metadata.get('Strings_Analysis', {})
+        
+        if strings_data:
+            all_strings = []
+            for category, strings_list in strings_data.items():
+                if isinstance(strings_list, list):
+                    all_strings.extend(strings_list)
+            
+            # Buscar padrões de coordenadas nas strings
+            for string in all_strings:
+                coords = self._parse_coordinate_string(string)
+                if coords:
+                    location_data = {
+                        'latitude': coords[0],
+                        'longitude': coords[1], 
+                        'source': 'Binary_String',
+                        'raw_string': string
+                    }
+                    locations.append(location_data)
+        
+        return locations
+    
+    def _parse_coordinate_string(self, text):
+        """Tenta extrair coordenadas de uma string de texto"""
+        try:
+            # Padrões de coordenadas comuns
+            patterns = [
+                # Decimal: 40.7128, -74.0060
+                r'([+-]?\d+\.\d+)[,\s]+([+-]?\d+\.\d+)',
+                # Graus: 40°42'46.0"N 74°00'21.6"W
+                r'(\d+)°(\d+)\'([\d.]+)"\s*([NS])\s+(\d+)°(\d+)\'([\d.]+)"\s*([EW])',
+                # Google Maps URL
+                r'[/@]([+-]?\d+\.\d+),([+-]?\d+\.\d+)',
+            ]
+            
+            for pattern in patterns:
+                matches = re.findall(pattern, text)
+                for match in matches:
+                    if len(match) == 2:  # Decimal format
+                        lat, lon = float(match[0]), float(match[1])
+                        if -90 <= lat <= 90 and -180 <= lon <= 180:
+                            return (lat, lon)
+                    elif len(match) == 8:  # DMS format
+                        lat = float(match[0]) + float(match[1])/60 + float(match[2])/3600
+                        lon = float(match[4]) + float(match[5])/60 + float(match[6])/3600
+                        
+                        if match[3] == 'S':
+                            lat = -lat
+                        if match[7] == 'W':
+                            lon = -lon
+                            
+                        if -90 <= lat <= 90 and -180 <= lon <= 180:
+                            return (lat, lon)
+        except Exception:
+            pass
+            
+        return None
+    
+    def reverse_geocoding(self, lat, lon):
+        """Faz geocodificação reversa para obter informações da localização"""
+        location_info = {
+            'latitude': lat,
+            'longitude': lon,
+            'address': 'Unknown',
+            'city': 'Unknown',
+            'country': 'Unknown',
+            'timezone': 'Unknown',
+            'maps_links': self._generate_maps_links(lat, lon)
+        }
+        
+        # Tentar múltiplas APIs de geocodificação
+        apis = [
+            self._nominatim_reverse,
+            self._ipapi_reverse,
+        ]
+        
+        for api_func in apis:
+            try:
+                result = api_func(lat, lon)
+                if result:
+                    location_info.update(result)
+                    break
+            except Exception as e:
+                continue
+        
+        return location_info
+    
+    def _nominatim_reverse(self, lat, lon):
+        """Geocodificação reversa usando OpenStreetMap Nominatim"""
+        try:
+            url = f"https://nominatim.openstreetmap.org/reverse"
+            params = {
+                'lat': lat,
+                'lon': lon,
+                'format': 'json',
+                'accept-language': 'pt-BR,pt;q=0.9,en;q=0.8'
+            }
+            
+            headers = {
+                'User-Agent': 'DAHMER-OSINT/2.1 (Security Research)'
+            }
+            
+            response = self.session.get(url, params=params, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                address_parts = data.get('address', {})
+                
+                return {
+                    'address': data.get('display_name', 'Unknown'),
+                    'city': (address_parts.get('city') or 
+                            address_parts.get('town') or 
+                            address_parts.get('village', 'Unknown')),
+                    'state': address_parts.get('state', 'Unknown'),
+                    'country': address_parts.get('country', 'Unknown'),
+                    'country_code': address_parts.get('country_code', 'Unknown'),
+                    'postcode': address_parts.get('postcode', 'Unknown'),
+                    'road': address_parts.get('road', 'Unknown'),
+                    'house_number': address_parts.get('house_number', 'Unknown'),
+                    'api_used': 'OpenStreetMap Nominatim'
+                }
+                
+        except Exception:
+            pass
+            
+        return None
+    
+    def _ipapi_reverse(self, lat, lon):
+        """Geocodificação reversa usando ip-api (aproximada)"""
+        try:
+            # Essa API não faz geocoding reverso direto, mas podemos usar para obter país/região
+            # baseado na proximidade geográfica
+            url = f"http://ip-api.com/json/"
+            response = self.session.get(url, timeout=5)
+            
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    'timezone': data.get('timezone', 'Unknown'),
+                    'api_used': 'ip-api (approximation)'
+                }
+        except Exception:
+            pass
+            
+        return None
+    
+    def _generate_maps_links(self, lat, lon):
+        """Gera links para diferentes serviços de mapas"""
+        return {
+            'google_maps': f"https://www.google.com/maps?q={lat},{lon}",
+            'google_satellite': f"https://www.google.com/maps?q={lat},{lon}&t=k",
+            'openstreetmap': f"https://www.openstreetmap.org/?mlat={lat}&mlon={lon}&zoom=15",
+            'bing_maps': f"https://www.bing.com/maps?q={lat},{lon}",
+            'apple_maps': f"https://maps.apple.com/?q={lat},{lon}",
+            'waze': f"https://waze.com/ul?ll={lat},{lon}",
+            'coordinates': f"{lat}, {lon}"
+        }
+    
+    def analyze_location_patterns(self, locations):
+        """Analisa padrões nas localizações encontradas"""
+        if not locations:
+            return {}
+            
+        analysis = {
+            'total_locations': len(locations),
+            'unique_coordinates': len(set((loc['latitude'], loc['longitude']) for loc in locations)),
+            'sources': list(set(loc['source'] for loc in locations)),
+            'has_movement': False,
+            'distance_traveled': 0,
+            'time_span': None,
+            'center_point': None
+        }
+        
+        if len(locations) > 1:
+            # Calcular distância entre pontos
+            coords = [(loc['latitude'], loc['longitude']) for loc in locations]
+            total_distance = 0
+            
+            for i in range(1, len(coords)):
+                dist = self._haversine_distance(coords[i-1][0], coords[i-1][1], 
+                                               coords[i][0], coords[i][1])
+                total_distance += dist
+            
+            analysis['distance_traveled'] = round(total_distance, 2)
+            analysis['has_movement'] = total_distance > 0.01  # 10 metros
+            
+            # Ponto central
+            avg_lat = sum(lat for lat, lon in coords) / len(coords)
+            avg_lon = sum(lon for lat, lon in coords) / len(coords)
+            analysis['center_point'] = (avg_lat, avg_lon)
+        
+        return analysis
+    
+    def _haversine_distance(self, lat1, lon1, lat2, lon2):
+        """Calcula distância entre duas coordenadas usando fórmula Haversine"""
+        from math import radians, cos, sin, asin, sqrt
+        
+        # Converter para radianos
+        lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+        
+        # Fórmula Haversine
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+        c = 2 * asin(sqrt(a))
+        
+        # Raio da Terra em km
+        r = 6371
+        return r * c
+    
+    def extract_all_locations(self, metadata):
+        """Extrai todas as localizações possíveis dos metadados"""
+        print_status("info", "Extraindo dados de geolocalização...")
+        
+        all_locations = []
+        
+        # 1. EXIF GPS
+        exif_locations = self.extract_gps_from_exif(metadata)
+        all_locations.extend(exif_locations)
+        
+        # 2. XMP GPS
+        xmp_locations = self.extract_gps_from_xmp(metadata)
+        all_locations.extend(xmp_locations)
+        
+        # 3. Strings binárias
+        string_locations = self.extract_gps_from_strings(metadata)
+        all_locations.extend(string_locations)
+        
+        # Remover duplicatas
+        unique_locations = []
+        seen_coords = set()
+        
+        for location in all_locations:
+            coord_key = (round(location['latitude'], 6), round(location['longitude'], 6))
+            if coord_key not in seen_coords:
+                seen_coords.add(coord_key)
+                unique_locations.append(location)
+        
+        self.locations_found = unique_locations
+        
+        # Fazer geocodificação reversa para cada localização única
+        if unique_locations:
+            print_status("info", f"Fazendo geocodificação reversa para {len(unique_locations)} localização(ões)...")
+            
+            for i, location in enumerate(unique_locations):
+                try:
+                    reverse_info = self.reverse_geocoding(location['latitude'], location['longitude'])
+                    location['reverse_geocoding'] = reverse_info
+                    time.sleep(1)  # Rate limiting para APIs
+                except Exception as e:
+                    print_status("warning", f"Erro na geocodificação reversa: {str(e)}")
+        
+        return unique_locations
+    
+    def generate_geolocation_report(self, locations):
+        """Gera relatório detalhado de geolocalização"""
+        if not locations:
+            return {
+                'summary': 'Nenhuma informação de geolocalização encontrada',
+                'locations': [],
+                'analysis': {}
+            }
+        
+        # Análise de padrões
+        analysis = self.analyze_location_patterns(locations)
+        
+        # Gerar relatório
+        report = {
+            'summary': f"{len(locations)} localização(ões) encontrada(s)",
+            'locations': locations,
+            'analysis': analysis,
+            'security_warnings': self._generate_security_warnings(locations, analysis)
+        }
+        
+        return report
+    
+    def _generate_security_warnings(self, locations, analysis):
+        """Gera avisos de segurança baseados nas localizações"""
+        warnings = []
+        
+        if locations:
+            warnings.append("⚠️  LOCALIZAÇÃO GPS DETECTADA: Arquivo contém coordenadas exatas")
+            
+            for location in locations:
+                coords = f"{location['latitude']}, {location['longitude']}"
+                warnings.append(f"📍 GPS: {coords} (Fonte: {location['source']})")
+                
+                if 'reverse_geocoding' in location:
+                    geocoding = location['reverse_geocoding']
+                    if geocoding.get('address') != 'Unknown':
+                        warnings.append(f"🏠 Endereço: {geocoding['address']}")
+                
+                # Links para mapas
+                maps_links = location.get('reverse_geocoding', {}).get('maps_links', {})
+                if maps_links:
+                    warnings.append(f"🗺️  Google Maps: {maps_links.get('google_maps')}")
+        
+        if analysis.get('has_movement'):
+            distance = analysis.get('distance_traveled', 0)
+            warnings.append(f"🚶 MOVIMENTO DETECTADO: {distance:.2f} km de distância total")
+        
+        if len(analysis.get('sources', [])) > 1:
+            sources = ', '.join(analysis['sources'])
+            warnings.append(f"📊 MÚLTIPLAS FONTES: {sources}")
+        
+        return warnings
+
 class MetadataExtractor:
-    """Extrator avancado de metadados para analise forense e OSINT"""
+    """Extrator avancado de metadados para analise forense e OSINT com suporte a ExifTool"""
     
     def __init__(self, file_path):
         self.file_path = file_path
         self.metadata = {}
         self.sensitive_data = []
         self.warnings = []
+        self.exiftool = ExifToolInterface()
+        self.geolocation_extractor = GeolocationExtractor()  # Nova funcionalidade
         
     # ==========================================================================
     # INFORMACOES BASICAS DO ARQUIVO
     # ==========================================================================
+    
+    def extract_with_exiftool(self):
+        """Extrai metadados usando ExifTool (método principal)"""
+        if not self.exiftool.is_available:
+            print_status("warning", "ExifTool não encontrado. Usando métodos Python nativos...")
+            return False
+            
+        try:
+            print_status("info", "Extraindo metadados com ExifTool...")
+            
+            # Extração em JSON
+            exif_data = self.exiftool.extract_metadata(self.file_path, json_output=True)
+            
+            if exif_data and isinstance(exif_data, list) and len(exif_data) > 0:
+                raw_data = exif_data[0]
+                
+                # Organizar metadados por grupos
+                organized_data = {
+                    'File_System': {},
+                    'EXIF': {},
+                    'XMP': {},
+                    'IPTC': {},
+                    'GPS': {},
+                    'Camera': {},
+                    'Software': {},
+                    'Author_Copyright': {},
+                    'Other': {}
+                }
+                
+                for key, value in raw_data.items():
+                    if not key or key == 'SourceFile':
+                        continue
+                        
+                    # Classificar por grupos
+                    if any(gps_tag in key.lower() for gps_tag in ['gps', 'location', 'latitude', 'longitude']):
+                        organized_data['GPS'][key] = value
+                        if any(coord in key.lower() for coord in ['latitude', 'longitude']) and value:
+                            self.sensitive_data.append(f"[!] GPS FOUND: {key} = {value}")
+                            
+                    elif any(cam_tag in key.lower() for cam_tag in ['make', 'model', 'lens', 'camera', 'serial']):
+                        organized_data['Camera'][key] = value
+                        if 'serial' in key.lower():
+                            self.sensitive_data.append(f"[!] DEVICE SERIAL: {key} = {value}")
+                            
+                    elif any(soft_tag in key.lower() for soft_tag in ['software', 'creator', 'tool', 'version', 'application']):
+                        organized_data['Software'][key] = value
+                        self.sensitive_data.append(f"[!] SOFTWARE INFO: {key} = {value}")
+                        
+                    elif any(auth_tag in key.lower() for auth_tag in ['artist', 'author', 'copyright', 'owner', 'creator']):
+                        organized_data['Author_Copyright'][key] = value
+                        self.sensitive_data.append(f"[!] AUTHOR INFO: {key} = {value}")
+                        
+                    elif key.startswith(('EXIF:', 'ExifIFD:')):
+                        organized_data['EXIF'][key] = value
+                        
+                    elif key.startswith(('XMP:', 'XMP-')):
+                        organized_data['XMP'][key] = value
+                        
+                    elif key.startswith('IPTC:'):
+                        organized_data['IPTC'][key] = value
+                        
+                    elif key.startswith('File:'):
+                        organized_data['File_System'][key] = value
+                        
+                    else:
+                        organized_data['Other'][key] = value
+                
+                # Adicionar apenas grupos não vazios
+                for group_name, group_data in organized_data.items():
+                    if group_data:
+                        self.metadata[f'ExifTool_{group_name}'] = group_data
+                
+                # Verificações especiais de segurança
+                self._check_sensitive_exiftool_data(raw_data)
+                
+                return True
+                
+        except Exception as e:
+            print_status("error", f"Erro no ExifTool: {str(e)}")
+            return False
+    
+    def _check_sensitive_exiftool_data(self, data):
+        """Verifica dados sensíveis específicos do ExifTool"""
+        try:
+            # GPS Coordinates
+            lat = data.get('GPS:GPSLatitude') or data.get('EXIF:GPSLatitude')
+            lon = data.get('GPS:GPSLongitude') or data.get('EXIF:GPSLongitude')
+            
+            if lat and lon:
+                maps_url = f"https://www.google.com/maps?q={lat},{lon}"
+                self.sensitive_data.append(f"[!] EXACT GPS LOCATION: {lat}, {lon}")
+                self.sensitive_data.append(f"[!] Google Maps: {maps_url}")
+            
+            # Thumbnail embedded
+            if any('thumbnail' in str(key).lower() for key in data.keys()):
+                self.sensitive_data.append("[!] EMBEDDED THUMBNAIL - May contain original image data!")
+                self.warnings.append("Thumbnail pode revelar informações da imagem original")
+            
+            # Edit History
+            history_keys = [key for key in data.keys() if 'history' in str(key).lower()]
+            if history_keys:
+                self.sensitive_data.append("[!] EDIT HISTORY FOUND - Image was processed!")
+                
+            # Device specific info
+            device_info = []
+            for key, value in data.items():
+                if any(device_tag in str(key).lower() for device_tag in 
+                      ['serialnumber', 'bodyserialnumber', 'lensserialnumber', 'internalserialnumber']):
+                    device_info.append(f"{key}: {value}")
+                    
+            if device_info:
+                self.sensitive_data.append("[!] DEVICE IDENTIFICATION DATA FOUND:")
+                for info in device_info:
+                    self.sensitive_data.append(f"    {info}")
+                    
+        except Exception:
+            pass
     
     def extract_file_info(self):
         """Extrai informacoes basicas do arquivo"""
@@ -1376,7 +2036,8 @@ class MetadataExtractor:
     def run(self):
         """Executa extracao completa de metadados"""
         print_module_header("ADVANCED METADATA EXTRACTOR")
-        print(f"\n{Colors.CYAN}[*] Target File: {Colors.WHITE}{self.file_path}{Colors.RESET}\n")
+        print(f"\n{Colors.CYAN}[*] Target File: {Colors.WHITE}{self.file_path}{Colors.RESET}")
+        print(f"{Colors.CYAN}[*] ExifTool Status: {Colors.GREEN if self.exiftool.is_available else Colors.RED}{'Available' if self.exiftool.is_available else 'Not Found'}{Colors.RESET}\n")
         print_separator()
         
         if not os.path.exists(self.file_path):
@@ -1391,18 +2052,41 @@ class MetadataExtractor:
         print_status("info", "Calculando hashes...")
         self.calculate_hashes()
         
-        # 3. Extracao especifica por tipo
-        file_ext = os.path.splitext(self.file_path)[1].lower()
+        # 3. PRIORIDADE: ExifTool (se disponível)
+        exiftool_success = False
+        if self.exiftool.is_available:
+            exiftool_success = self.extract_with_exiftool()
+            
+        # 4. Fallback: Métodos Python nativos (se ExifTool falhar ou não estiver disponível)
+        if not exiftool_success:
+            file_ext = os.path.splitext(self.file_path)[1].lower()
+            
+            if file_ext in ['.jpg', '.jpeg', '.png', '.gif', '.tiff', '.tif', '.bmp', '.webp', '.heic', '.heif']:
+                print_status("info", "Extraindo metadados de imagem com Python (EXIF, XMP, IPTC, GPS)...")
+                self.extract_image_metadata()
         
-        if file_ext in ['.jpg', '.jpeg', '.png', '.gif', '.tiff', '.tif', '.bmp', '.webp', '.heic', '.heif']:
-            print_status("info", "Extraindo metadados de imagem (EXIF, XMP, IPTC, GPS)...")
-            self.extract_image_metadata()
-        
-        # 4. Analise de strings (para qualquer arquivo)
+        # 5. Analise de strings (para qualquer arquivo)
         file_size = os.path.getsize(self.file_path)
         if file_size < 50 * 1024 * 1024:  # Menos de 50MB
             print_status("info", "Analisando strings no binario...")
             self.extract_strings()
+            
+        # 6. Extração avançada de geolocalização
+        print_status("info", "Analisando dados de geolocalização...")
+        locations = self.geolocation_extractor.extract_all_locations(self.metadata)
+        
+        if locations:
+            geolocation_report = self.geolocation_extractor.generate_geolocation_report(locations)
+            self.metadata['Geolocation_Analysis'] = geolocation_report
+            
+            # Adicionar avisos de segurança específicos de GPS
+            security_warnings = geolocation_report.get('security_warnings', [])
+            self.sensitive_data.extend(security_warnings)
+        
+        # 7. Verificar se ExifTool não está disponível e mostrar instruções
+        if not self.exiftool.is_available:
+            print_status("warning", "Para análise mais completa, instale o ExifTool:")
+            self._show_exiftool_install_instructions()
         
         # ======================================================================
         # EXIBIR RESULTADOS
@@ -1414,6 +2098,64 @@ class MetadataExtractor:
         print(f"+{'-' * 60}+{Colors.RESET}\n")
         
         self._print_metadata(self.metadata)
+        
+        # ======================================================================
+        # EXIBIR GEOLOCALIZAÇÃO (se encontrada) - DESTAQUE PRINCIPAL
+        # ======================================================================
+        
+        geolocation_data = self.metadata.get('Geolocation_Analysis')
+        if geolocation_data and geolocation_data.get('locations'):
+            print(f"\n{Colors.RED}{'='*70}{Colors.RESET}")
+            print(f"{Colors.RED}{Colors.BOLD}   📍 GEOLOCALIZAÇÃO GPS DETECTADA - DADOS SENSÍVEIS!   {Colors.RESET}")
+            print(f"{Colors.RED}{'='*70}{Colors.RESET}\n")
+            
+            locations = geolocation_data.get('locations', [])
+            analysis = geolocation_data.get('analysis', {})
+            
+            print(f"    {Colors.YELLOW}📊 Resumo da Localização:{Colors.RESET}")
+            print(f"      • {Colors.GREEN}{analysis.get('total_locations', 0)} localização(ões) encontrada(s){Colors.RESET}")
+            print(f"      • Coordenadas únicas: {analysis.get('unique_coordinates', 0)}")
+            print(f"      • Fontes: {Colors.CYAN}{', '.join(analysis.get('sources', []))}{Colors.RESET}")
+            
+            if analysis.get('has_movement'):
+                distance = analysis.get('distance_traveled', 0)
+                print(f"      • {Colors.RED}🚶 Movimento detectado: {distance:.2f} km{Colors.RESET}")
+            
+            print(f"\n    {Colors.YELLOW}🗺️  Coordenadas GPS:{Colors.RESET}")
+            
+            for i, location in enumerate(locations[:3], 1):  # Mostrar até 3 localizações
+                lat, lon = location['latitude'], location['longitude']
+                source = location.get('source', 'Unknown')
+                
+                print(f"\n      {Colors.GREEN}#{i} - {source}:{Colors.RESET}")
+                print(f"        {Colors.RED}📍 GPS: {lat:.6f}, {lon:.6f}{Colors.RESET}")
+                
+                # Informações adicionais se disponíveis
+                if location.get('altitude'):
+                    print(f"        ⛰️  Altitude: {location['altitude']} metros")
+                if location.get('timestamp'):
+                    print(f"        🕐 Timestamp: {location['timestamp']}")
+                
+                # Geocodificação reversa
+                reverse_info = location.get('reverse_geocoding')
+                if reverse_info:
+                    if reverse_info.get('address') != 'Unknown':
+                        print(f"        {Colors.CYAN}🏠 Endereço: {reverse_info['address'][:80]}...{Colors.RESET}")
+                    if reverse_info.get('city') != 'Unknown':
+                        print(f"        🏙️  Cidade: {reverse_info['city']}")
+                    if reverse_info.get('country') != 'Unknown':
+                        print(f"        🌍 País: {reverse_info['country']}")
+                    
+                    # Links principais
+                    maps_links = reverse_info.get('maps_links', {})
+                    if maps_links:
+                        print(f"        {Colors.BLUE}🔗 Google Maps: {maps_links.get('google_maps')}{Colors.RESET}")
+                        print(f"        {Colors.BLUE}🔗 OpenStreetMap: {maps_links.get('openstreetmap')}{Colors.RESET}")
+            
+            if len(locations) > 3:
+                print(f"\n      {Colors.DIM}... e mais {len(locations) - 3} localização(ões){Colors.RESET}")
+            
+            print(f"\n{Colors.RED}{'='*70}{Colors.RESET}")
         
         # ======================================================================
         # DADOS SENSÍVEIS
@@ -1449,6 +2191,69 @@ class MetadataExtractor:
         
         return self.metadata
     
+    def _print_geolocation_details(self, geolocation_data):
+        """Exibe detalhes específicos de geolocalização"""
+        locations = geolocation_data.get('locations', [])
+        analysis = geolocation_data.get('analysis', {})
+        
+        print(f"    {Colors.GREEN}📊 Resumo:{Colors.RESET}")
+        print(f"      • Total de localizações: {analysis.get('total_locations', 0)}")
+        print(f"      • Coordenadas únicas: {analysis.get('unique_coordinates', 0)}")
+        print(f"      • Fontes: {', '.join(analysis.get('sources', []))}")
+        
+        if analysis.get('has_movement'):
+            distance = analysis.get('distance_traveled', 0)
+            print(f"      • 🚶 Movimento detectado: {distance:.2f} km")
+        
+        print(f"\n    {Colors.CYAN}🗺️  Localizações encontradas:{Colors.RESET}")
+        
+        for i, location in enumerate(locations, 1):
+            lat, lon = location['latitude'], location['longitude']
+            source = location.get('source', 'Unknown')
+            
+            print(f"\n      {Colors.YELLOW}#{i} - {source}:{Colors.RESET}")
+            print(f"        📍 Coordenadas: {lat}, {lon}")
+            
+            # Informações adicionais se disponíveis
+            if location.get('altitude'):
+                print(f"        ⛰️  Altitude: {location['altitude']} metros")
+            if location.get('timestamp'):
+                print(f"        🕐 Timestamp: {location['timestamp']}")
+            if location.get('accuracy'):
+                print(f"        🎯 Precisão: {location['accuracy']}")
+            
+            # Geocodificação reversa
+            reverse_info = location.get('reverse_geocoding')
+            if reverse_info:
+                if reverse_info.get('address') != 'Unknown':
+                    print(f"        🏠 Endereço: {reverse_info['address']}")
+                if reverse_info.get('city') != 'Unknown':
+                    print(f"        🏙️  Cidade: {reverse_info['city']}")
+                if reverse_info.get('country') != 'Unknown':
+                    print(f"        🌍 País: {reverse_info['country']}")
+                
+                # Links para mapas
+                maps_links = reverse_info.get('maps_links', {})
+                if maps_links:
+                    print(f"        🔗 Links:")
+                    print(f"           • Google Maps: {maps_links.get('google_maps')}")
+                    print(f"           • OpenStreetMap: {maps_links.get('openstreetmap')}")
+                    print(f"           • Satélite: {maps_links.get('google_satellite')}")
+    
+    def _show_exiftool_install_instructions(self):
+        """Mostra instruções de instalação do ExifTool"""
+        instructions = ExifToolInterface.install_instructions()
+        
+        print(f"\n{Colors.YELLOW}+{'-' * 60}+")
+        print(f"|{Colors.WHITE}{Colors.BOLD} {'COMO INSTALAR EXIFTOOL'.center(58)} {Colors.YELLOW}|")
+        print(f"+{'-' * 60}+{Colors.RESET}\n")
+        
+        for method_key, method_info in instructions.items():
+            print(f"  {Colors.CYAN}● {method_info['title']}:{Colors.RESET}")
+            for step in method_info['steps']:
+                print(f"    {Colors.DIM}- {step}{Colors.RESET}")
+            print()
+    
     def save_results(self):
         """Salva resultados em arquivo JSON"""
         filename = f"metadata_{os.path.basename(self.file_path)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -1456,9 +2261,11 @@ class MetadataExtractor:
         output = {
             'extraction_info': {
                 'tool': 'DAHMER OSINT Framework - Advanced Metadata Extractor',
-                'version': '2.0.0',
+                'version': '2.1.0',
                 'extraction_date': datetime.now().isoformat(),
                 'target_file': os.path.abspath(self.file_path),
+                'exiftool_used': self.exiftool.is_available,
+                'exiftool_path': self.exiftool.exiftool_path if self.exiftool.is_available else None,
             },
             'metadata': self.metadata,
             'sensitive_data': self.sensitive_data,
@@ -2016,6 +2823,185 @@ def get_user_input(prompt, allow_empty=False):
             return user_input
         print_status("warning", "Input nao pode ser vazio!")
 
+def analyze_geolocation_only(file_path):
+    """Análise especializada apenas em geolocalização"""
+    print_module_header("GEOLOCATION ANALYZER")
+    print(f"\n{Colors.CYAN}[*] Target File: {Colors.WHITE}{file_path}{Colors.RESET}\n")
+    print_separator()
+    
+    if not os.path.exists(file_path):
+        print_status("error", "Arquivo não encontrado!")
+        return
+    
+    try:
+        # Primeiro extrair metadados básicos
+        extractor = MetadataExtractor(file_path)
+        print_status("info", "Extraindo metadados...")
+        
+        # Extrair informações básicas
+        extractor.extract_file_info()
+        
+        # Tentar ExifTool primeiro
+        if extractor.exiftool.is_available:
+            extractor.extract_with_exiftool()
+        else:
+            # Fallback para Python nativo
+            file_ext = os.path.splitext(file_path)[1].lower()
+            if file_ext in ['.jpg', '.jpeg', '.png', '.gif', '.tiff', '.tif', '.bmp', '.webp', '.heic', '.heif']:
+                extractor.extract_image_metadata()
+        
+        # Extrair strings para buscar coordenadas
+        extractor.extract_strings()
+        
+        # Análise específica de geolocalização
+        geo_extractor = GeolocationExtractor()
+        locations = geo_extractor.extract_all_locations(extractor.metadata)
+        
+        if not locations:
+            print(f"\n{Colors.YELLOW}📍 Nenhuma informação de geolocalização encontrada no arquivo.{Colors.RESET}")
+            print(f"\n{Colors.DIM}Possíveis razões:")
+            print(f"• Arquivo não contém metadados GPS")
+            print(f"• GPS estava desabilitado quando criado")
+            print(f"• Metadados foram removidos/limpos")
+            print(f"• Formato de arquivo não suporta GPS{Colors.RESET}")
+            return
+        
+        # Gerar relatório completo
+        report = geo_extractor.generate_geolocation_report(locations)
+        
+        # Exibir resultados detalhados
+        print(f"\n{Colors.GREEN}🎯 ANÁLISE DE GEOLOCALIZAÇÃO CONCLUÍDA{Colors.RESET}\n")
+        
+        analysis = report.get('analysis', {})
+        print(f"📊 {Colors.CYAN}Estatísticas:{Colors.RESET}")
+        print(f"   • Localizações encontradas: {analysis.get('total_locations', 0)}")
+        print(f"   • Coordenadas únicas: {analysis.get('unique_coordinates', 0)}")
+        print(f"   • Fontes de dados: {', '.join(analysis.get('sources', []))}")
+        
+        if analysis.get('has_movement'):
+            distance = analysis.get('distance_traveled', 0)
+            print(f"   • 🚶 Movimento detectado: {distance:.2f} km")
+        
+        if analysis.get('center_point'):
+            center = analysis['center_point']
+            print(f"   • 🎯 Ponto central: {center[0]:.6f}, {center[1]:.6f}")
+        
+        print(f"\n🗺️  {Colors.CYAN}Detalhes das Localizações:{Colors.RESET}")
+        
+        for i, location in enumerate(locations, 1):
+            print(f"\n   {Colors.YELLOW}#{i} - {location.get('source', 'Unknown')}:{Colors.RESET}")
+            print(f"      📍 GPS: {location['latitude']:.6f}, {location['longitude']:.6f}")
+            
+            # Informações extras
+            if location.get('altitude'):
+                print(f"      ⛰️  Altitude: {location['altitude']} m")
+            if location.get('timestamp'):
+                print(f"      🕐 Timestamp: {location['timestamp']}")
+            if location.get('speed'):
+                print(f"      🏃 Velocidade: {location['speed']} km/h")
+            if location.get('direction'):
+                print(f"      🧭 Direção: {location['direction']}°")
+            
+            # Geocodificação reversa
+            reverse_info = location.get('reverse_geocoding', {})
+            if reverse_info:
+                if reverse_info.get('address', 'Unknown') != 'Unknown':
+                    print(f"      🏠 {Colors.GREEN}Endereço: {reverse_info['address']}{Colors.RESET}")
+                if reverse_info.get('city', 'Unknown') != 'Unknown':
+                    print(f"      🏙️  Cidade: {reverse_info['city']}")
+                if reverse_info.get('country', 'Unknown') != 'Unknown':
+                    print(f"      🌍 País: {reverse_info['country']}")
+                
+                # Links diretos
+                maps_links = reverse_info.get('maps_links', {})
+                if maps_links:
+                    print(f"      🔗 {Colors.CYAN}Abrir em:{Colors.RESET}")
+                    print(f"         • Google Maps: {maps_links.get('google_maps')}")
+                    print(f"         • Satélite: {maps_links.get('google_satellite')}")
+                    print(f"         • OpenStreetMap: {maps_links.get('openstreetmap')}")
+                    print(f"         • Waze: {maps_links.get('waze')}")
+        
+        # Avisos de segurança
+        warnings = report.get('security_warnings', [])
+        if warnings:
+            print(f"\n{Colors.RED}⚠️  AVISOS DE SEGURANÇA:{Colors.RESET}")
+            for warning in warnings:
+                print(f"   {warning}")
+        
+        # Salvar relatório específico de geolocalização
+        filename = f"geolocation_{os.path.basename(file_path)}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        
+        geo_report = {
+            'file_info': {
+                'filename': os.path.basename(file_path),
+                'path': os.path.abspath(file_path),
+                'analysis_date': datetime.now().isoformat()
+            },
+            'geolocation_data': report,
+            'tool_info': {
+                'framework': 'DAHMER OSINT',
+                'version': '2.1+',
+                'exiftool_used': extractor.exiftool.is_available
+            }
+        }
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(geo_report, f, indent=2, ensure_ascii=False, default=str)
+        
+        print(f"\n{Colors.GREEN}✅ Relatório de geolocalização salvo em: {filename}{Colors.RESET}")
+        
+    except Exception as e:
+        print_status("error", f"Erro durante análise: {str(e)}")
+
+
+def check_exiftool_status():
+    """Verifica e exibe status detalhado do ExifTool"""
+    print_module_header("EXIFTOOL STATUS")
+    
+    exif = ExifToolInterface()
+    
+    print(f"\n{Colors.CYAN}[*] System: {Colors.WHITE}{platform.system()} {platform.release()}{Colors.RESET}")
+    print(f"{Colors.CYAN}[*] Architecture: {Colors.WHITE}{platform.machine()}{Colors.RESET}\n")
+    print_separator()
+    
+    if exif.is_available:
+        print_status("success", "ExifTool encontrado e funcional!")
+        print(f"\n    {Colors.CYAN}Path:{Colors.RESET} {exif.exiftool_path}")
+        
+        # Testar versão
+        try:
+            cmd = [exif.exiftool_path, '-ver']
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                version = result.stdout.strip()
+                print(f"    {Colors.CYAN}Version:{Colors.RESET} {version}")
+        except Exception as e:
+            print_status("warning", f"Não foi possível obter a versão: {str(e)}")
+        
+        # Mostrar alguns formatos suportados
+        try:
+            formats = exif.get_supported_formats()
+            if formats:
+                print(f"\n    {Colors.GREEN}[+] Suporte para {len(formats)} formatos de arquivo{Colors.RESET}")
+                print(f"    {Colors.DIM}Exemplos: {', '.join(formats[:15])}{'...' if len(formats) > 15 else ''}{Colors.RESET}")
+        except Exception:
+            pass
+            
+    else:
+        print_status("error", "ExifTool NÃO encontrado no sistema")
+        print(f"\n{Colors.YELLOW}Para instalar o ExifTool:{Colors.RESET}\n")
+        
+        instructions = ExifToolInterface.install_instructions()
+        
+        for method_key, method_info in instructions.items():
+            print(f"  {Colors.CYAN}● {method_info['title']}:{Colors.RESET}")
+            for step in method_info['steps']:
+                print(f"    {Colors.DIM}- {step}{Colors.RESET}")
+            print()
+        
+        print(f"{Colors.YELLOW}Após a instalação, reinicie o terminal e execute este comando novamente.{Colors.RESET}")
+
+
 def pause():
     """Pausa a execucao ate o usuario pressionar ENTER"""
     input(f"\n{Colors.CYAN}Pressione ENTER para voltar ao menu...{Colors.RESET}")
@@ -2107,6 +3093,11 @@ def main():
                     print_status("warning", "Memória vazia. Execute a opção 9 primeiro.")
                 pause()
                 
+            elif choice == '11':
+                # ExifTool Status
+                check_exiftool_status()
+                pause()
+                
             elif choice == '0':
                 # Exit
                 clear_screen()
@@ -2176,6 +3167,7 @@ Examples:
     parser.add_argument('-g', '--dorks', metavar='DOMAIN', help='Google dorks generator')
     parser.add_argument('-i', '--ip', metavar='IP', help='IP geolocation')
     parser.add_argument('-f', '--full', metavar='DOMAIN', help='Full reconnaissance')
+    parser.add_argument('-l', '--location', metavar='FILE', help='Análise especializada de geolocalização')
     parser.add_argument('-v', '--version', action='version', version=f'{TOOL_NAME} v{VERSION}')
     
     args = parser.parse_args()
@@ -2213,6 +3205,10 @@ Examples:
         clear_screen()
         print_banner()
         FullRecon(args.full).run()
+    elif args.location:
+        clear_screen()
+        print_banner()
+        analyze_geolocation_only(args.location)
     else:
         # Modo interativo
         main()
