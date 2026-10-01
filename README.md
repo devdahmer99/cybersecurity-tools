@@ -75,11 +75,11 @@ O framework consolida m√∫ltiplas ferramentas de reconhecimento em uma √∫nica int
 
 | Caracter√≠stica | Benef√≠cio |
 |----------------|-----------|
-| **All-in-One** | 10 mÛdulos integrados em uma ˙nica ferramenta |
+| **All-in-One** | 10 m√≥dulos integrados em uma √∫nica ferramenta |
 | **Interface Intuitiva** | Menu interativo com visual profissional |
-| **Linha de Comando** | Suporte completo para automaÁ„o e scripts |
-| **ExportaÁ„o** | Resultados salvos em JSON e TXT automaticamente |
-| **ExtensÌvel** | Arquitetura modular f·cil de expandir |
+| **Linha de Comando** | Suporte completo para automa√ß√£o e scripts |
+| **Exporta√ß√£o** | Resultados salvos em JSON e TXT automaticamente |
+| **Extens√≠vel** | Arquitetura modular f√°cil de expandir |
 | **Cross-Platform** | Funciona em Linux, Windows e macOS |
 
 ---
@@ -134,12 +134,12 @@ Busca presen√ßa digital em **100+ plataformas**:
 <tr>
 <td width="50%">
 
-### ?? Advanced Metadata Extractor
-An·lise forense completa de arquivos:
+### üî¨ Advanced Metadata Extractor
+An√°lise forense completa de arquivos:
 - **Imagens**: EXIF, GPS, XMP, IPTC, thumbnails
-- **Todos os tipos**: M˙ltiplos hashes, strings ocultas
-- **DetecÁ„o**: Software usado, dados sensÌveis
-- **An·lise bin·ria**: Emails, URLs, caminhos
+- **Todos os tipos**: M√∫ltiplos hashes, strings ocultas
+- **Detec√ß√£o**: Software usado, dados sens√≠veis
+- **An√°lise bin√°ria**: Emails, URLs, caminhos
 
 </td>
 <td width="50%">
@@ -166,34 +166,34 @@ Geolocaliza√ß√£o e informa√ß√µes de IPs:
 </td>
 <td width="50%">
 
-### ?? Full Recon
+### üõ∞Ô∏è Full Recon
 Reconhecimento completo automatizado:
-- Executa todos os mÛdulos
-- RelatÛrio consolidado
+- Executa todos os m√≥dulos
+- Relat√≥rio consolidado
 - Ideal para assessments
-- ExportaÁ„o unificada
+- Exporta√ß√£o unificada
 
 </td>
 </tr>
 <tr>
 <td width="50%">
 
-### ?? Tech & WAF Detector
-Identifica tecnologias e proteÁıes:
-- Stack tecnolÛgico completo
-- DetecÁ„o de CMS e versıes
+### üõ°Ô∏è Tech & WAF Detector
+Identifica tecnologias e prote√ß√µes:
+- Stack tecnol√≥gico completo
+- Detec√ß√£o de CMS e vers√µes
 - WAF e security headers
 - Plugins e temas ativos
 
 </td>
 <td width="50%">
 
-### ?? Vulnerability Scanner
+### üö® Vulnerability Scanner
 Busca CVEs em componentes:
-- Base de dados p˙blicas
+- Base de dados p√∫blicas
 - Score CVSS de risco
-- Match com versıes encontradas
-- RelatÛrios detalhados
+- Match com vers√µes encontradas
+- Relat√≥rios detalhados
 
 </td>
 </tr>
@@ -383,7 +383,7 @@ python osint.py -i 8.8.8.8
 python osint.py -f exemplo.com.br
 
 # Tech & Vuln Analysis (Interactive Mode)
-python osint.py    # Use menu para opÁıes 9 e 10
+python osint.py    # Use menu para op√ß√µes 9 e 10
 
 # Full Recon
 python osint_framework.py -f exemplo.com.br
@@ -656,12 +656,12 @@ full_recon_exemplo.com_20241124_102030.json
 
 ---
 
-### ?? 9. Tech & WAF Detector
+### üõ°Ô∏è 9. Tech & WAF Detector
 
-Identifica tecnologias, CMS, frameworks e sistemas de proteÁ„o de um alvo.
+Identifica tecnologias, CMS, frameworks e sistemas de prote√ß√£o de um alvo.
 
 **Tecnologias detectadas:**
-| Categoria | DetecÁıes |
+| Categoria | Detec√ß√µes |
 |-----------|-----------|
 | **CMS** | WordPress, Drupal, Joomla, etc. |
 | **Servidor Web** | Apache, Nginx, IIS, LiteSpeed |
@@ -670,23 +670,23 @@ Identifica tecnologias, CMS, frameworks e sistemas de proteÁ„o de um alvo.
 | **Plugins** | WordPress plugins ativos |
 | **Security Headers** | HSTS, CSP, X-Frame-Options |
 
-**InformaÁıes coletadas:**
-- Versıes especÌficas do CMS
+**Informa√ß√µes coletadas:**
+- Vers√µes espec√≠ficas do CMS
 - Plugins e temas identificados  
-- Headers de seguranÁa implementados
+- Headers de seguran√ßa implementados
 - Arquivos interessantes encontrados
-- ConfiguraÁıes expostas
+- Configura√ß√µes expostas
 
 **Output:**
 ```
 tech_exemplo.com_102030.json
 ```
 
-**Exemplo de relatÛrio:**
+**Exemplo de relat√≥rio:**
 ```
-??????????????????????????????????????????????????????????????
-?                    TECH STACK REPORT                        ?
-??????????????????????????????????????????????????????????????
++--------------------------------------------------------------+
+|                    TECH STACK REPORT                         |
++--------------------------------------------------------------+
 
 CMS: WordPress 6.3.2
 WAF: Cloudflare  
@@ -697,35 +697,35 @@ Security Headers: 3/6 Missing
 
 ---
 
-### ?? 10. Vulnerability Scanner (CVE)
+### üö® 10. Vulnerability Scanner (CVE)
 
 Busca vulnerabilidades conhecidas (CVEs) nos componentes identificados pelo Tech Detector.
 
 **Fontes de dados:**
-- **cve.circl.lu** - Base de dados p˙blica de CVEs
+- **cve.circl.lu** - Base de dados p√∫blica de CVEs
 - **NVD/NIST** - National Vulnerability Database  
-- **CorrelaÁ„o autom·tica** com versıes encontradas
+- **Correla√ß√£o autom√°tica** com vers√µes encontradas
 
 **Funcionalidades:**
 - Busca por CMS core (WordPress, Drupal, etc.)
-- An·lise de plugins identificados
-- VerificaÁ„o de temas
+- An√°lise de plugins identificados
+- Verifica√ß√£o de temas
 - Score CVSS de criticidade
-- Match autom·tico de versıes
+- Match autom√°tico de vers√µes
 
-**Exemplo de saÌda:**
+**Exemplo de sa√≠da:**
 ```
-??????????????????????????????????????????????????????????????
-?               RELAT”RIO DE VULNERABILIDADES                  ?
-??????????????????????????????????????????????????????????????
++--------------------------------------------------------------+
+|               RELAT√ìRIO DE VULNERABILIDADES                  |
++--------------------------------------------------------------+
 
- ? WORDPRESS:
-    ?? CVE-2023-39999 (CVSS: 9.8) [VERSION MATCH]
-    ?? WordPress Core <= 6.3.2 - Remote Code Execution...
+ [!] WORDPRESS:
+    - CVE-2023-39999 (CVSS: 9.8) [VERSION MATCH]
+    - WordPress Core <= 6.3.2 - Remote Code Execution...
     
- ? PLUGIN CONTACT-FORM-7:
-    ?? CVE-2023-12345 (CVSS: 7.5)  
-    ?? Contact Form 7 - Cross-Site Scripting (XSS)...
+ [!] PLUGIN CONTACT-FORM-7:
+    - CVE-2023-12345 (CVSS: 7.5)  
+    - Contact Form 7 - Cross-Site Scripting (XSS)...
 ```
 
 **Output:**
@@ -733,10 +733,10 @@ Busca vulnerabilidades conhecidas (CVEs) nos componentes identificados pelo Tech
 vulns_20241124_102030.json
 ```
 
-**?? Importante:**
-- O scanner **N√O** executa exploits
-- Verifica apenas CVEs p˙blicas conhecidas
-- Requer execuÁ„o do Tech Detector primeiro
+**‚ö†Ô∏è Importante:**
+- O scanner **N√ÉO** executa exploits
+- Verifica apenas CVEs p√∫blicas conhecidas
+- Requer execu√ß√£o do Tech Detector primeiro
 - Resultados devem ser validados manualmente
 
 ---
@@ -769,22 +769,22 @@ python osint_framework.py -u johndoe123
 python osint_framework.py -i 192.168.1.1
 ```
 
-### Exemplo 3: An·lise de SeguranÁa Completa
+### Exemplo 3: An√°lise de Seguran√ßa Completa
 
 ```bash
-# Passo 1: Reconhecimento b·sico
+# Passo 1: Reconhecimento b√°sico
 python osint.py -f empresa.com
 
-# Passo 2: An·lise tecnolÛgica detalhada
-python osint.py   # Menu interativo -> opÁ„o 9
+# Passo 2: An√°lise tecnol√≥gica detalhada
+python osint.py   # Menu interativo -> op√ß√£o 9
 
 # Passo 3: Buscar vulnerabilidades  
-python osint.py   # Menu interativo -> opÁ„o 10
+python osint.py   # Menu interativo -> op√ß√£o 10
 
 # Resultado: Stack completo + CVEs conhecidos
 ```
 
-### Exemplo 4: An·lise Forense de Documento (AVAN«ADA)
+### Exemplo 4: An√°lise Forense de Documento (AVAN√áADA)
 
 ```bash
 # Extrair TODOS os metadados de uma imagem
@@ -793,11 +793,11 @@ python osint.py -m foto_suspeita.jpg
 
 # Analisar PDF corporativo  
 python osint.py -m relatorio_financeiro.pdf
-# ? Autor, software usado, histÛrico de ediÁ„o, dados sensÌveis
+# ? Autor, software usado, hist√≥rico de edi√ß√£o, dados sens√≠veis
 
 # Buscar dados ocultos em qualquer arquivo
 python osint.py -m arquivo_suspeito.bin
-# ? Emails, URLs, caminhos, hashes m˙ltiplos, an·lise bin·ria
+# ? Emails, URLs, caminhos, hashes m√∫ltiplos, an√°lise bin√°ria
 ```
 
 ### Exemplo 5: Workflow de Pentest Completo
@@ -808,25 +808,25 @@ python osint.py -m arquivo_suspeito.bin
 
 TARGET="empresa-alvo.com"
 
-echo "[*] Iniciando avaliaÁ„o de seguranÁa para: $TARGET"
+echo "[*] Iniciando avalia√ß√£o de seguran√ßa para: $TARGET"
 
 # Fase 1: Reconhecimento
 echo "[1/4] Reconhecimento inicial..."
 python osint.py -f "$TARGET"
 
-# Fase 2: An·lise tecnolÛgica  
-echo "[2/4] Identificando stack tecnolÛgico..."
-python osint.py   # Menu -> opÁ„o 9
+# Fase 2: An√°lise tecnol√≥gica  
+echo "[2/4] Identificando stack tecnol√≥gico..."
+python osint.py   # Menu -> op√ß√£o 9
 
 # Fase 3: Busca de vulnerabilidades
 echo "[3/4] Buscando CVEs nos componentes..."  
-python osint.py   # Menu -> opÁ„o 10
+python osint.py   # Menu -> op√ß√£o 10
 
-# Fase 4: Compilar relatÛrio
+# Fase 4: Compilar relat√≥rio
 echo "[4/4] Compilando resultados..."
 cat full_recon_${TARGET}_*.json > relatorio_completo.json
 
-echo "[?] Assessment concluÌdo! Verifique os arquivos gerados."
+echo "[?] Assessment conclu√≠do! Verifique os arquivos gerados."
 ```
 
 ### Exemplo 6: Uso em Script Bash
